@@ -258,8 +258,11 @@ class Shell(Command):
                     ipshell(global_ns=dict(), local_ns=context)
                 except ImportError:
                     # 0.12+
-                    from IPython import embed
-                    embed(banner1=self.banner, user_ns=context)
+                    from IPython.terminal.ipapp import TerminalIPythonApp
+                    app = TerminalIPythonApp.instance(banner1=self.banner,
+                                                      user_ns=context)
+                    app.initialize(argv=[])
+                    app.start()
                 return
             except ImportError:
                 pass
