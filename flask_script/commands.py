@@ -230,6 +230,35 @@ class Shell(Command):
         """
         return self.make_context()
 
+    def ipython(self, context):
+        try:
+            # 0.10.x
+            from IPython.Shell import IPShellEmbed
+            ipshell = IPShellEmbed(banner=self.banner)
+            ipshell(global_ns=dict(), local_ns=context)
+        except ImportError:
+            # 0.12+
+            try:
+                from IPython.terminal import ipapp
+            except ImportError:
+                from IPython.frontend.terminal import ipapp
+            app = ipapp.TerminalIPythonApp.instance()
+            shell = ipapp.TerminalInteractiveShell.instance(
+                parent=app,
+                display_banner=False,
+                profile_dir=app.profile_dir,
+                ipython_dir=app.ipython_dir,
+                user_ns=context,
+                banner1=self.banner)
+            shell.configurables.append(app)
+            app.shell = shell
+            # shell has already been initialized, so we have to monkeypatch
+            # app.init_shell() to act as no-op
+            app.init_shell = lambda: None
+            app.initialize(argv=[])
+            app.start()
+
+
     def run(self, no_ipython, no_bpython):
         """
         Runs the shell.  If no_bpython is False or use_bpython is True, then
@@ -249,20 +278,8 @@ class Shell(Command):
                 pass
 
         if not no_ipython:
-            # Try IPython
             try:
-                try:
-                    # 0.10.x
-                    from IPython.Shell import IPShellEmbed
-                    ipshell = IPShellEmbed(banner=self.banner)
-                    ipshell(global_ns=dict(), local_ns=context)
-                except ImportError:
-                    # 0.12+
-                    from IPython.terminal.ipapp import TerminalIPythonApp
-                    app = TerminalIPythonApp.instance(banner1=self.banner,
-                                                      user_ns=context)
-                    app.initialize(argv=[])
-                    app.start()
+                self.ipython(context)
                 return
             except ImportError:
                 pass
